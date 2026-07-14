@@ -1,3 +1,4 @@
+using WiseAutoShutdown.Core.Overrides;
 using WiseAutoShutdown.Core.Power;
 using WiseAutoShutdown.Core.Security;
 
@@ -14,6 +15,7 @@ public sealed record AppSettings
     public bool AllowUntilWindowEnd { get; init; }
     public bool AutoStart { get; init; }
     public PasswordHashRecord? Password { get; init; }
+    public OverrideGrant? ActiveOverride { get; init; }
 
     public static AppSettings CreateDefaults() => new()
     {
