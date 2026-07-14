@@ -108,10 +108,7 @@ public sealed class RestrictionControllerTests
         harness.Controller.Evaluate(RestrictionTrigger.SessionUnlock, sessionLocked: false);
 
         Assert.Equal(RestrictionState.ActionFailed, harness.Controller.State);
-        Assert.InRange(
-            harness.Controller.NextRetryAt!.Value,
-            harness.Clock.Now.AddSeconds(30),
-            harness.Clock.Now.AddMinutes(5));
+        Assert.Equal(harness.Clock.Now.AddSeconds(5), harness.Controller.NextRetryAt);
     }
 
     [Fact]
@@ -142,6 +139,61 @@ public sealed class RestrictionControllerTests
 
         Assert.Empty(harness.Prompt.Requests);
         Assert.Empty(harness.Power.Actions);
+    }
+    [Fact]
+    public void Failed_action_retries_after_5_10_and_20_seconds_then_stops()
+    {
+        var harness = ControllerHarness.Create(PromptResult.ExecuteNow());
+        harness.Power.Result = PowerActionResult.Failure("failed");
+        harness.Controller.Evaluate(RestrictionTrigger.SessionUnlock, sessionLocked: false);
+
+        RetryAfter(harness, 5);
+        RetryAfter(harness, 10);
+        RetryAfter(harness, 20);
+        harness.Clock.Now = harness.Clock.Now.AddMinutes(1);
+        harness.Controller.Evaluate(RestrictionTrigger.Periodic, sessionLocked: false);
+
+        Assert.Equal(4, harness.Power.Actions.Count);
+        Assert.Single(harness.Prompt.Requests);
+        Assert.Null(harness.Controller.NextRetryAt);
+        Assert.Equal(RestrictionState.ActionFailed, harness.Controller.State);
+    }
+
+    [Fact]
+    public void Successful_retry_resets_failure_cycle()
+    {
+        var harness = ControllerHarness.Create(PromptResult.ExecuteNow());
+        harness.Power.Result = PowerActionResult.Failure("failed");
+        harness.Controller.Evaluate(RestrictionTrigger.SessionUnlock, sessionLocked: false);
+        harness.Power.Result = PowerActionResult.Success();
+
+        RetryAfter(harness, 5);
+
+        Assert.Equal(RestrictionState.Restricted, harness.Controller.State);
+        Assert.Null(harness.Controller.NextRetryAt);
+    }
+
+    [Fact]
+    public void New_window_resets_exhausted_retry_cycle()
+    {
+        var harness = ControllerHarness.Create(PromptResult.ExecuteNow());
+        harness.Power.Result = PowerActionResult.Failure("failed");
+        harness.Controller.Evaluate(RestrictionTrigger.SessionUnlock, sessionLocked: false);
+        RetryAfter(harness, 5);
+        RetryAfter(harness, 10);
+        RetryAfter(harness, 20);
+        harness.Clock.Now = DateTimeOffset.Parse("2026-07-14T23:10:00+00:00");
+
+        harness.Controller.Evaluate(RestrictionTrigger.Periodic, sessionLocked: false);
+
+        Assert.Equal(5, harness.Power.Actions.Count);
+        Assert.Equal(harness.Clock.Now.AddSeconds(5), harness.Controller.NextRetryAt);
+    }
+
+    private static void RetryAfter(ControllerHarness harness, int seconds)
+    {
+        harness.Clock.Now = harness.Clock.Now.AddSeconds(seconds);
+        harness.Controller.Evaluate(RestrictionTrigger.Periodic, sessionLocked: false);
     }
     private static OverrideGrant ActiveGrant(DateTimeOffset grantedAt, DateTimeOffset expiresAt)
     {
@@ -227,6 +279,3 @@ public sealed class RestrictionControllerTests
         }
     }
 }
-
-
-

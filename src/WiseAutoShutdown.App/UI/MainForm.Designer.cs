@@ -32,7 +32,7 @@ partial class MainForm
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Background;
-        ClientSize = new Size(560, 590);
+        ClientSize = new Size(560, 680);
         Font = new Font("Segoe UI", 9F);
         ForeColor = UiTheme.Text;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -151,4 +151,3 @@ partial class MainForm
         layout.RowCount++;
     }
 }
-

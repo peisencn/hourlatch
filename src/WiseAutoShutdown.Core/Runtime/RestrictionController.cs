@@ -5,11 +5,12 @@ namespace WiseAutoShutdown.Core.Runtime;
 
 public sealed class RestrictionController
 {
-    private static readonly TimeSpan MaximumRetryDelay = TimeSpan.FromMinutes(5);
+    private static readonly int[] RetryDelaySeconds = [5, 10, 20];
     private readonly RestrictionControllerDependencies _dependencies;
     private readonly TimeZoneInfo _timeZone;
     private bool _evaluationInProgress;
-    private int _failureCount;
+    private int _retryAttempt;
+    private string? _retryWindowId;
 
     public RestrictionController(
         RestrictionControllerDependencies dependencies,
@@ -47,7 +48,7 @@ public sealed class RestrictionController
         var settings = loadResult.Settings;
         if (!loadResult.IsValid || !_dependencies.Validator.Validate(settings).IsValid || !settings.Enabled)
         {
-            State = RestrictionState.Disabled;
+            ResetFailure(RestrictionState.Disabled);
             return;
         }
 
@@ -73,7 +74,31 @@ public sealed class RestrictionController
             return;
         }
 
-        ShowPrompt(settings, window, now);
+        EvaluateRestriction(settings, window, trigger);
+    }
+
+    private void EvaluateRestriction(
+        AppSettings settings,
+        RestrictionWindow window,
+        RestrictionTrigger trigger)
+    {
+        if (State != RestrictionState.ActionFailed || trigger != RestrictionTrigger.Periodic)
+        {
+            ShowPrompt(settings, window);
+            return;
+        }
+
+        if (_retryWindowId != window.Id)
+        {
+            ClearFailureCycle();
+            ShowPrompt(settings, window);
+            return;
+        }
+
+        if (NextRetryAt is not null)
+        {
+            ExecuteAction(settings, window, isRetry: true);
+        }
     }
 
     private AppSettings ClearStaleGrant(
@@ -92,7 +117,7 @@ public sealed class RestrictionController
         return updated;
     }
 
-    private void ShowPrompt(AppSettings settings, RestrictionWindow window, DateTimeOffset now)
+    private void ShowPrompt(AppSettings settings, RestrictionWindow window)
     {
         State = RestrictionState.Warning;
         var request = new PromptRequest(window, settings.Action, settings.WarningSeconds)
@@ -105,25 +130,27 @@ public sealed class RestrictionController
 
         if (result.Outcome == PromptOutcome.OverrideApproved)
         {
-            PersistOverride(settings, window, now, result.OverrideRequest!);
+            PersistOverride(settings, window, result.OverrideRequest!);
             return;
         }
 
-        ExecuteAction(settings);
+        ExecuteAction(settings, window, isRetry: false);
     }
 
     private void PersistOverride(
         AppSettings settings,
         RestrictionWindow window,
-        DateTimeOffset now,
         Overrides.OverrideRequest request)
     {
-        var grant = _dependencies.OverrideManager.Create(window, now, request);
+        var grant = _dependencies.OverrideManager.Create(
+            window,
+            _dependencies.Clock.Now,
+            request);
         _dependencies.SettingsStore.Save(settings with { ActiveOverride = grant });
         ResetFailure(RestrictionState.OverrideActive);
     }
 
-    private void ExecuteAction(AppSettings settings)
+    private void ExecuteAction(AppSettings settings, RestrictionWindow window, bool isRetry)
     {
         var result = _dependencies.PowerExecutor.Execute(settings.Action);
         if (result.Succeeded)
@@ -132,10 +159,25 @@ public sealed class RestrictionController
             return;
         }
 
-        _failureCount++;
-        var delaySeconds = Math.Min(30 * Math.Pow(2, _failureCount - 1), MaximumRetryDelay.TotalSeconds);
-        NextRetryAt = _dependencies.Clock.Now.AddSeconds(delaySeconds);
+        if (isRetry)
+        {
+            _retryAttempt++;
+        }
+        else
+        {
+            _retryAttempt = 0;
+            _retryWindowId = window.Id;
+        }
+
+        ScheduleNextRetry();
         State = RestrictionState.ActionFailed;
+    }
+
+    private void ScheduleNextRetry()
+    {
+        NextRetryAt = _retryAttempt < RetryDelaySeconds.Length
+            ? _dependencies.Clock.Now.AddSeconds(RetryDelaySeconds[_retryAttempt])
+            : null;
     }
 
     private bool ShouldWaitForRetry(RestrictionTrigger trigger) =>
@@ -145,8 +187,14 @@ public sealed class RestrictionController
 
     private void ResetFailure(RestrictionState state)
     {
-        _failureCount = 0;
-        NextRetryAt = null;
+        ClearFailureCycle();
         State = state;
+    }
+
+    private void ClearFailureCycle()
+    {
+        _retryAttempt = 0;
+        _retryWindowId = null;
+        NextRetryAt = null;
     }
 }
