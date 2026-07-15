@@ -85,15 +85,19 @@ public sealed class RestrictionControllerTests
         Assert.Single(harness.Power.Actions);
     }
 
-    [Fact]
-    public void Resume_while_locked_is_deferred()
+    [Theory]
+    [InlineData(RestrictionTrigger.Resume)]
+    [InlineData(RestrictionTrigger.Periodic)]
+    [InlineData(RestrictionTrigger.SystemTimeChanged)]
+    [InlineData(RestrictionTrigger.WindowBoundary)]
+    public void Evaluation_while_locked_is_deferred(RestrictionTrigger trigger)
     {
         var harness = ControllerHarness.Create(PromptResult.TimedOut());
         harness.Controller.Evaluate(RestrictionTrigger.Startup, sessionLocked: false);
         harness.Prompt.Requests.Clear();
         harness.Power.Actions.Clear();
 
-        harness.Controller.Evaluate(RestrictionTrigger.Resume, sessionLocked: true);
+        harness.Controller.Evaluate(trigger, sessionLocked: true);
 
         Assert.Empty(harness.Prompt.Requests);
         Assert.Empty(harness.Power.Actions);

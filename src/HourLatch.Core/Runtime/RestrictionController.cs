@@ -69,7 +69,7 @@ public sealed class RestrictionController
             return;
         }
 
-        if (trigger == RestrictionTrigger.Resume && sessionLocked)
+        if (sessionLocked)
         {
             return;
         }
