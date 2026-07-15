@@ -25,10 +25,12 @@ public sealed class TrayApplicationDependencies
 
 public sealed class TrayApplicationContext : ApplicationContext
 {
+    private static readonly TimeSpan PeriodicFallback = TimeSpan.FromSeconds(30);
     private readonly TrayApplicationDependencies _dependencies;
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
     private readonly System.Windows.Forms.Timer _evaluationTimer;
+    private bool _evaluationInProgress;
     private bool _exiting;
 
     public TrayApplicationContext(TrayApplicationDependencies dependencies)
@@ -36,12 +38,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         _dependencies = dependencies ?? throw new ArgumentNullException(nameof(dependencies));
         _contextMenu = CreateContextMenu();
         _notifyIcon = CreateNotifyIcon();
-        _evaluationTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
+        _evaluationTimer = new System.Windows.Forms.Timer();
         _evaluationTimer.Tick += (_, _) => Evaluate(RestrictionTrigger.Periodic);
         _dependencies.SystemEvents.EvaluationRequested += Evaluate;
         _dependencies.MainForm.SettingsChanged += OnSettingsChanged;
         _dependencies.MainForm.FormClosing += OnSettingsClosing;
-        _evaluationTimer.Start();
         Evaluate(RestrictionTrigger.Startup);
         if (_dependencies.ShowSettingsOnStart)
         {
@@ -56,7 +57,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         _dependencies.SystemEvents.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _contextMenu.Dispose();
         _dependencies.MainForm.Dispose();
+        _dependencies.PromptForm.Dispose();
         base.ExitThreadCore();
     }
 
@@ -82,6 +85,13 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private void Evaluate(RestrictionTrigger trigger)
     {
+        if (_evaluationInProgress)
+        {
+            return;
+        }
+
+        _evaluationInProgress = true;
+        _evaluationTimer.Stop();
         var previousState = _dependencies.Controller.State;
         try
         {
@@ -95,6 +105,60 @@ public sealed class TrayApplicationContext : ApplicationContext
             _dependencies.Log.Exception(trigger.ToString(), exception);
             Notify("评估失败，请打开设置检查配置。");
         }
+        finally
+        {
+            _evaluationInProgress = false;
+            ScheduleNextTick();
+        }
+    }
+
+    private void ScheduleNextTick()
+    {
+        if (_exiting)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.Now;
+        DateTimeOffset? target = null;
+        try
+        {
+            target = GetNextTarget(now);
+        }
+        catch (Exception exception)
+        {
+            _dependencies.Log.Exception("schedule_next_tick", exception);
+        }
+
+        var delay = EvaluationTimerPolicy.GetDelay(now, target, PeriodicFallback);
+        _evaluationTimer.Interval = (int)Math.Ceiling(delay.TotalMilliseconds);
+        _evaluationTimer.Start();
+    }
+
+    private DateTimeOffset? GetNextTarget(DateTimeOffset now)
+    {
+        if (_dependencies.Controller.NextRetryAt is not null)
+        {
+            return _dependencies.Controller.NextRetryAt;
+        }
+
+        var load = _dependencies.SettingsStore.Load();
+        var settings = load.Settings;
+        if (!load.IsValid || !settings.Enabled)
+        {
+            return null;
+        }
+
+        var schedule = new DailyRestrictionSchedule(settings.StartTime, settings.EndTime);
+        var window = schedule.GetContainingWindow(now, _dependencies.TimeZone);
+        if (window is null)
+        {
+            return schedule.GetNextWindow(now, _dependencies.TimeZone).Start;
+        }
+
+        return settings.ActiveOverride?.IsActive(window, now) == true
+            ? settings.ActiveOverride.ExpiresAt
+            : window.End;
     }
 
     private void ShowSettings()
