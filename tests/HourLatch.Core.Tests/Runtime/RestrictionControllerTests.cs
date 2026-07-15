@@ -241,7 +241,11 @@ public sealed class RestrictionControllerTests
         private static AppSettings ValidSettings(bool enabled) => AppSettings.CreateDefaults() with
         {
             Enabled = enabled,
-            Password = new PasswordHashRecord("PBKDF2-SHA256", 210_000, "c2FsdA==", "aGFzaA==")
+            Password = new PasswordHashRecord(
+                "PBKDF2-SHA256",
+                210_000,
+                "AAAAAAAAAAAAAAAAAAAAAA==",
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
         };
     }
 

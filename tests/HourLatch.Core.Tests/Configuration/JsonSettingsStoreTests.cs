@@ -36,7 +36,11 @@ public sealed class JsonSettingsStoreTests : IDisposable
         {
             Enabled = true,
             Action = RestrictionAction.Sleep,
-            Password = new PasswordHashRecord("PBKDF2-SHA256", 210_000, "c2FsdA==", "aGFzaA=="),
+            Password = new PasswordHashRecord(
+                "PBKDF2-SHA256",
+                210_000,
+                "AAAAAAAAAAAAAAAAAAAAAA==",
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
             ActiveOverride = new OverrideGrant(
                 new RestrictionWindow(DateTimeOffset.Parse("2026-07-13T23:00:00+00:00"), DateTimeOffset.Parse("2026-07-14T07:00:00+00:00")).Id,
                 DateTimeOffset.Parse("2026-07-13T23:05:00+00:00"),

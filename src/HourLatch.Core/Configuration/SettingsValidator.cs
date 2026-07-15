@@ -9,6 +9,11 @@ public sealed record SettingsValidationResult(IReadOnlyList<SettingsValidationEr
 
 public sealed class SettingsValidator
 {
+    private const string PasswordAlgorithm = "PBKDF2-SHA256";
+    private const int MinimumPasswordIterations = 10_000;
+    private const int MaximumPasswordIterations = 1_000_000;
+    private const int PasswordSaltSize = 16;
+    private const int PasswordHashSize = 32;
     private const int MaximumWarningSeconds = 300;
     private const int MaximumOverrideMinutes = 24 * 60;
 
@@ -36,6 +41,41 @@ public sealed class SettingsValidator
         if (settings.Enabled && settings.Password is null)
         {
             errors.Add(new("password_required", "Enabled restrictions require a password."));
+            return;
+        }
+
+        if (settings.Enabled && !IsValidPasswordRecord(settings.Password!))
+        {
+            errors.Add(new("password_invalid", "The configured password record is invalid."));
+        }
+    }
+
+    private static bool IsValidPasswordRecord(Security.PasswordHashRecord record)
+    {
+        if (record.Algorithm != PasswordAlgorithm ||
+            record.Iterations is < MinimumPasswordIterations or > MaximumPasswordIterations)
+        {
+            return false;
+        }
+
+        return HasDecodedLength(record.SaltBase64, PasswordSaltSize) &&
+               HasDecodedLength(record.HashBase64, PasswordHashSize);
+    }
+
+    private static bool HasDecodedLength(string? value, int expectedLength)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Convert.FromBase64String(value).Length == expectedLength;
+        }
+        catch (FormatException)
+        {
+            return false;
         }
     }
 
