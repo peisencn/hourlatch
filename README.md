@@ -1,4 +1,4 @@
-# Wise Auto Shutdown
+# HourLatch
 
 一个面向 Windows 的轻量自我约束工具。程序常驻系统托盘，在每日单个限制时段内提醒并执行锁屏或休眠；输入独立密码后，可以按指定时长临时放行。
 
@@ -12,7 +12,7 @@
 
 ## 首次使用
 
-1. 启动 `WiseAutoShutdown.App.exe`，首次运行会打开设置窗口。
+1. 启动 `HourLatch.exe`，首次运行会打开设置窗口。
 2. 设置每日开始时间和结束时间。跨午夜时段可直接使用，例如 `23:00-07:00`。
 3. 选择 `锁屏` 或 `休眠`，设置提醒倒计时。
 4. 设置应用密码。未设置密码时不能启用限制。
@@ -41,14 +41,14 @@
 HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 ```
 
-值名为 `WiseAutoShutdown`。关闭该选项并保存会删除对应启动项。
+值名为 `HourLatch`。关闭该选项并保存会删除对应启动项。
 
 ## 文件位置
 
 ```text
-配置：%AppData%\WiseAutoShutdown\settings.json
-日志：%LocalAppData%\WiseAutoShutdown\logs\app.log
-旧日志：%LocalAppData%\WiseAutoShutdown\logs\app.previous.log
+配置：%AppData%\HourLatch\settings.json
+日志：%LocalAppData%\HourLatch\logs\app.log
+旧日志：%LocalAppData%\HourLatch\logs\app.previous.log
 ```
 
 配置使用临时文件替换方式保存。密码仅保存 PBKDF2-SHA256 加盐哈希，不保存明文。日志不记录密码、哈希、盐或输入内容。
@@ -56,8 +56,8 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 ## 构建与测试
 
 ```powershell
-dotnet build WiseAutoShutdown.sln -c Debug
-dotnet test WiseAutoShutdown.sln -c Debug
+dotnet build HourLatch.sln -c Debug
+dotnet test HourLatch.sln -c Debug
 ```
 
 ## 发布
@@ -65,13 +65,13 @@ dotnet test WiseAutoShutdown.sln -c Debug
 Release 配置生成 `win-x64`、框架依赖的单文件程序，不启用 trimming：
 
 ```powershell
-dotnet publish src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj -c Release -r win-x64 --self-contained false
+dotnet publish src/HourLatch.App/HourLatch.App.csproj -c Release -r win-x64 --self-contained false
 ```
 
 发布目录：
 
 ```text
-src\WiseAutoShutdown.App\bin\Release\net8.0-windows\win-x64\publish
+src\HourLatch.App\bin\Release\net8.0-windows\win-x64\publish
 ```
 
 ## 第三方代码

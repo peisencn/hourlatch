@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 The Windows lock and suspend action implementation in
-`src/WiseAutoShutdown.App/Power/WindowsPowerActionExecutor.cs` is adapted from
+`src/HourLatch.App/Power/WindowsPowerActionExecutor.cs` is adapted from
 [ShutdownTimerClassic](https://github.com/lukaslangrock/ShutdownTimerClassic)
 at commit `37c955ed448e48ea1ce1ea087b084b2badcf7ee2`.
 

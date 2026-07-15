@@ -1,4 +1,4 @@
-# 定时限制与临时放行 Implementation Plan
+# HourLatch 时段锁与临时放行 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -22,13 +22,13 @@
 ## 文件结构
 
 ```text
-WiseAutoShutdown.sln
+HourLatch.sln
 THIRD_PARTY_NOTICES.md
 licenses/
   ShutdownTimerClassic-MIT.txt
 src/
-  WiseAutoShutdown.Core/
-    WiseAutoShutdown.Core.csproj
+  HourLatch.Core/
+    HourLatch.Core.csproj
     Configuration/
       AppSettings.cs
       ISettingsStore.cs
@@ -57,8 +57,8 @@ src/
       OverrideGrant.cs
       OverrideManager.cs
       OverrideRequest.cs
-  WiseAutoShutdown.App/
-    WiseAutoShutdown.App.csproj
+  HourLatch.App/
+    HourLatch.App.csproj
     Program.cs
     Diagnostics/
       LocalLog.cs
@@ -78,8 +78,8 @@ src/
       PasswordVerificationDialog.cs
       PasswordVerificationDialog.Designer.cs
 tests/
-  WiseAutoShutdown.Core.Tests/
-    WiseAutoShutdown.Core.Tests.csproj
+  HourLatch.Core.Tests/
+    HourLatch.Core.Tests.csproj
     Configuration/
       JsonSettingsStoreTests.cs
       SettingsValidatorTests.cs
@@ -99,11 +99,11 @@ README.md
 ### Task 1: 建立 .NET 8 解决方案与上游归属
 
 **Files:**
-- Create: `WiseAutoShutdown.sln`
-- Create: `src/WiseAutoShutdown.Core/WiseAutoShutdown.Core.csproj`
-- Create: `src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj`
-- Create: `src/WiseAutoShutdown.App/Program.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj`
+- Create: `HourLatch.sln`
+- Create: `src/HourLatch.Core/HourLatch.Core.csproj`
+- Create: `src/HourLatch.App/HourLatch.App.csproj`
+- Create: `src/HourLatch.App/Program.cs`
+- Create: `tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj`
 - Create: `licenses/ShutdownTimerClassic-MIT.txt`
 - Create: `THIRD_PARTY_NOTICES.md`
 
@@ -129,15 +129,15 @@ Expected: at least one `8.0.x` SDK path.
 Run:
 
 ```powershell
-dotnet new sln --name WiseAutoShutdown
-New-Item -ItemType Directory -Force src/WiseAutoShutdown.Core, src/WiseAutoShutdown.App, tests/WiseAutoShutdown.Core.Tests, licenses
+dotnet new sln --name HourLatch
+New-Item -ItemType Directory -Force src/HourLatch.Core, src/HourLatch.App, tests/HourLatch.Core.Tests, licenses
 ```
 
-Expected: `WiseAutoShutdown.sln` exists.
+Expected: `HourLatch.sln` exists.
 
 - [ ] **Step 3: 创建项目文件**
 
-Create `src/WiseAutoShutdown.Core/WiseAutoShutdown.Core.csproj`:
+Create `src/HourLatch.Core/HourLatch.Core.csproj`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -150,7 +150,7 @@ Create `src/WiseAutoShutdown.Core/WiseAutoShutdown.Core.csproj`:
 </Project>
 ```
 
-Create `src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj`:
+Create `src/HourLatch.App/HourLatch.App.csproj`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -161,16 +161,16 @@ Create `src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj`:
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>12</LangVersion>
-    <RootNamespace>WiseAutoShutdown</RootNamespace>
+    <RootNamespace>HourLatch</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WiseAutoShutdown.Core\WiseAutoShutdown.Core.csproj" />
+    <ProjectReference Include="..\HourLatch.Core\HourLatch.Core.csproj" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
   </ItemGroup>
 </Project>
 ```
 
-Create `tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj`:
+Create `tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -189,15 +189,15 @@ Create `tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj`:
     <PackageReference Include="coverlet.collector" Version="6.0.2">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <ProjectReference Include="..\..\src\WiseAutoShutdown.Core\WiseAutoShutdown.Core.csproj" />
+    <ProjectReference Include="..\..\src\HourLatch.Core\HourLatch.Core.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-Create a temporary buildable `src/WiseAutoShutdown.App/Program.cs`; Task 10 replaces its empty application context with the real tray runtime:
+Create a temporary buildable `src/HourLatch.App/Program.cs`; Task 10 replaces its empty application context with the real tray runtime:
 
 ```csharp
-namespace WiseAutoShutdown;
+namespace HourLatch;
 
 internal static class Program
 {
@@ -214,10 +214,10 @@ internal static class Program
 Run:
 
 ```powershell
-dotnet sln WiseAutoShutdown.sln add src/WiseAutoShutdown.Core/WiseAutoShutdown.Core.csproj
-dotnet sln WiseAutoShutdown.sln add src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj
-dotnet sln WiseAutoShutdown.sln add tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj
-dotnet restore WiseAutoShutdown.sln
+dotnet sln HourLatch.sln add src/HourLatch.Core/HourLatch.Core.csproj
+dotnet sln HourLatch.sln add src/HourLatch.App/HourLatch.App.csproj
+dotnet sln HourLatch.sln add tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj
+dotnet restore HourLatch.sln
 ```
 
 Expected: restore succeeds with 0 errors.
@@ -242,8 +242,8 @@ See `licenses/ShutdownTimerClassic-MIT.txt`.
 Run:
 
 ```powershell
-dotnet build WiseAutoShutdown.sln -c Debug
-dotnet test WiseAutoShutdown.sln -c Debug --no-build
+dotnet build HourLatch.sln -c Debug
+dotnet test HourLatch.sln -c Debug --no-build
 ```
 
 Expected: build succeeds; test command reports no tests yet and exits 0.
@@ -251,16 +251,16 @@ Expected: build succeeds; test command reports no tests yet and exits 0.
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add WiseAutoShutdown.sln src tests licenses THIRD_PARTY_NOTICES.md
+git add HourLatch.sln src tests licenses THIRD_PARTY_NOTICES.md
 git commit -m "chore: 初始化定时限制项目"
 ```
 
 ### Task 2: 实现每日限制时间窗口
 
 **Files:**
-- Create: `src/WiseAutoShutdown.Core/Scheduling/RestrictionWindow.cs`
-- Create: `src/WiseAutoShutdown.Core/Scheduling/DailyRestrictionSchedule.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Scheduling/DailyRestrictionScheduleTests.cs`
+- Create: `src/HourLatch.Core/Scheduling/RestrictionWindow.cs`
+- Create: `src/HourLatch.Core/Scheduling/DailyRestrictionSchedule.cs`
+- Create: `tests/HourLatch.Core.Tests/Scheduling/DailyRestrictionScheduleTests.cs`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -297,7 +297,7 @@ public sealed class DailyRestrictionScheduleTests
 Run:
 
 ```powershell
-dotnet test tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj --filter DailyRestrictionScheduleTests
+dotnet test tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj --filter DailyRestrictionScheduleTests
 ```
 
 Expected: FAIL because scheduling types do not exist.
@@ -321,7 +321,7 @@ Keep `DailyRestrictionSchedule` below 100 lines by extracting `AtLocalTime(DateO
 Run:
 
 ```powershell
-dotnet test tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj --filter DailyRestrictionScheduleTests
+dotnet test tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj --filter DailyRestrictionScheduleTests
 ```
 
 Expected: all scheduling tests PASS.
@@ -329,16 +329,16 @@ Expected: all scheduling tests PASS.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.Core/Scheduling tests/WiseAutoShutdown.Core.Tests/Scheduling
+git add src/HourLatch.Core/Scheduling tests/HourLatch.Core.Tests/Scheduling
 git commit -m "feat: 实现每日限制时间窗口"
 ```
 
 ### Task 3: 实现密码哈希与验证
 
 **Files:**
-- Create: `src/WiseAutoShutdown.Core/Security/PasswordHashRecord.cs`
-- Create: `src/WiseAutoShutdown.Core/Security/PasswordHasher.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Security/PasswordHasherTests.cs`
+- Create: `src/HourLatch.Core/Security/PasswordHashRecord.cs`
+- Create: `src/HourLatch.Core/Security/PasswordHasher.cs`
+- Create: `tests/HourLatch.Core.Tests/Security/PasswordHasherTests.cs`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -392,21 +392,21 @@ Expected: all password tests PASS.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.Core/Security tests/WiseAutoShutdown.Core.Tests/Security
+git add src/HourLatch.Core/Security tests/HourLatch.Core.Tests/Security
 git commit -m "feat: 添加安全密码验证"
 ```
 
 ### Task 4: 实现配置模型、校验与原子持久化
 
 **Files:**
-- Create: `src/WiseAutoShutdown.Core/Power/RestrictionAction.cs`
-- Create: `src/WiseAutoShutdown.Core/Configuration/AppSettings.cs`
-- Create: `src/WiseAutoShutdown.Core/Configuration/ISettingsStore.cs`
-- Create: `src/WiseAutoShutdown.Core/Configuration/SettingsLoadResult.cs`
-- Create: `src/WiseAutoShutdown.Core/Configuration/SettingsValidator.cs`
-- Create: `src/WiseAutoShutdown.Core/Configuration/JsonSettingsStore.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Configuration/SettingsValidatorTests.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Configuration/JsonSettingsStoreTests.cs`
+- Create: `src/HourLatch.Core/Power/RestrictionAction.cs`
+- Create: `src/HourLatch.Core/Configuration/AppSettings.cs`
+- Create: `src/HourLatch.Core/Configuration/ISettingsStore.cs`
+- Create: `src/HourLatch.Core/Configuration/SettingsLoadResult.cs`
+- Create: `src/HourLatch.Core/Configuration/SettingsValidator.cs`
+- Create: `src/HourLatch.Core/Configuration/JsonSettingsStore.cs`
+- Create: `tests/HourLatch.Core.Tests/Configuration/SettingsValidatorTests.cs`
+- Create: `tests/HourLatch.Core.Tests/Configuration/JsonSettingsStoreTests.cs`
 
 - [ ] **Step 1: 写配置校验失败测试**
 
@@ -447,19 +447,19 @@ Expected: all configuration tests PASS.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.Core/Configuration src/WiseAutoShutdown.Core/Power tests/WiseAutoShutdown.Core.Tests/Configuration
+git add src/HourLatch.Core/Configuration src/HourLatch.Core/Power tests/HourLatch.Core.Tests/Configuration
 git commit -m "feat: 添加限制配置持久化"
 ```
 
 ### Task 5: 实现临时放行
 
 **Files:**
-- Create: `src/WiseAutoShutdown.Core/Overrides/OverrideGrant.cs`
-- Create: `src/WiseAutoShutdown.Core/Overrides/OverrideRequest.cs`
-- Create: `src/WiseAutoShutdown.Core/Overrides/OverrideManager.cs`
-- Modify: `src/WiseAutoShutdown.Core/Configuration/AppSettings.cs`
-- Modify: `tests/WiseAutoShutdown.Core.Tests/Configuration/JsonSettingsStoreTests.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Overrides/OverrideManagerTests.cs`
+- Create: `src/HourLatch.Core/Overrides/OverrideGrant.cs`
+- Create: `src/HourLatch.Core/Overrides/OverrideRequest.cs`
+- Create: `src/HourLatch.Core/Overrides/OverrideManager.cs`
+- Modify: `src/HourLatch.Core/Configuration/AppSettings.cs`
+- Modify: `tests/HourLatch.Core.Tests/Configuration/JsonSettingsStoreTests.cs`
+- Create: `tests/HourLatch.Core.Tests/Overrides/OverrideManagerTests.cs`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -506,23 +506,23 @@ Run: `dotnet test --filter OverrideManagerTests`
 Expected: PASS.
 
 ```powershell
-git add src/WiseAutoShutdown.Core/Overrides src/WiseAutoShutdown.Core/Configuration/AppSettings.cs tests/WiseAutoShutdown.Core.Tests/Overrides tests/WiseAutoShutdown.Core.Tests/Configuration/JsonSettingsStoreTests.cs
+git add src/HourLatch.Core/Overrides src/HourLatch.Core/Configuration/AppSettings.cs tests/HourLatch.Core.Tests/Overrides tests/HourLatch.Core.Tests/Configuration/JsonSettingsStoreTests.cs
 git commit -m "feat: 实现临时放行规则"
 ```
 
 ### Task 6: 实现策略状态与控制器
 
 **Files:**
-- Create: `src/WiseAutoShutdown.Core/Runtime/IClock.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/SystemClock.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/RestrictionState.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/RestrictionTrigger.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/IRestrictionPrompt.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/PromptModels.cs`
-- Create: `src/WiseAutoShutdown.Core/Power/IPowerActionExecutor.cs`
-- Create: `src/WiseAutoShutdown.Core/Power/PowerActionResult.cs`
-- Create: `src/WiseAutoShutdown.Core/Runtime/RestrictionController.cs`
-- Create: `tests/WiseAutoShutdown.Core.Tests/Runtime/RestrictionControllerTests.cs`
+- Create: `src/HourLatch.Core/Runtime/IClock.cs`
+- Create: `src/HourLatch.Core/Runtime/SystemClock.cs`
+- Create: `src/HourLatch.Core/Runtime/RestrictionState.cs`
+- Create: `src/HourLatch.Core/Runtime/RestrictionTrigger.cs`
+- Create: `src/HourLatch.Core/Runtime/IRestrictionPrompt.cs`
+- Create: `src/HourLatch.Core/Runtime/PromptModels.cs`
+- Create: `src/HourLatch.Core/Power/IPowerActionExecutor.cs`
+- Create: `src/HourLatch.Core/Power/PowerActionResult.cs`
+- Create: `src/HourLatch.Core/Runtime/RestrictionController.cs`
+- Create: `tests/HourLatch.Core.Tests/Runtime/RestrictionControllerTests.cs`
 
 - [ ] **Step 1: 写控制器失败测试**
 
@@ -576,7 +576,7 @@ Run:
 
 ```powershell
 dotnet test --filter RestrictionControllerTests
-dotnet test tests/WiseAutoShutdown.Core.Tests/WiseAutoShutdown.Core.Tests.csproj
+dotnet test tests/HourLatch.Core.Tests/HourLatch.Core.Tests.csproj
 ```
 
 Expected: all controller and core tests PASS.
@@ -584,14 +584,14 @@ Expected: all controller and core tests PASS.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.Core/Runtime src/WiseAutoShutdown.Core/Power tests/WiseAutoShutdown.Core.Tests/Runtime
+git add src/HourLatch.Core/Runtime src/HourLatch.Core/Power tests/HourLatch.Core.Tests/Runtime
 git commit -m "feat: 实现限制状态控制器"
 ```
 
 ### Task 7: 移植 Windows 锁屏与休眠执行器
 
 **Files:**
-- Create: `src/WiseAutoShutdown.App/Power/WindowsPowerActionExecutor.cs`
+- Create: `src/HourLatch.App/Power/WindowsPowerActionExecutor.cs`
 - Modify: `THIRD_PARTY_NOTICES.md`
 
 - [ ] **Step 1: 定义不会误触发真实动作的执行边界**
@@ -613,7 +613,7 @@ Add a source comment:
 Run:
 
 ```powershell
-dotnet build src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj -c Debug
+dotnet build src/HourLatch.App/HourLatch.App.csproj -c Debug
 ```
 
 Expected: PASS with 0 warnings introduced by this file.
@@ -621,15 +621,15 @@ Expected: PASS with 0 warnings introduced by this file.
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.App/Power THIRD_PARTY_NOTICES.md
+git add src/HourLatch.App/Power THIRD_PARTY_NOTICES.md
 git commit -m "feat: 添加Windows限制动作"
 ```
 
 ### Task 8: 实现系统事件和登录自启动
 
 **Files:**
-- Create: `src/WiseAutoShutdown.App/SystemEvents/SystemEventMonitor.cs`
-- Create: `src/WiseAutoShutdown.App/Startup/StartupRegistration.cs`
+- Create: `src/HourLatch.App/SystemEvents/SystemEventMonitor.cs`
+- Create: `src/HourLatch.App/Startup/StartupRegistration.cs`
 
 - [ ] **Step 1: 实现系统事件监视器**
 
@@ -637,30 +637,30 @@ Subscribe to `SystemEvents.SessionSwitch`, `PowerModeChanged`, and `TimeChanged`
 
 - [ ] **Step 2: 实现当前用户自动启动**
 
-Use `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value name `WiseAutoShutdown`, and the quoted executable path. Provide `IsEnabled`, `Enable`, and `Disable`. Failures return a result instead of throwing into the UI event loop.
+Use `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value name `HourLatch`, and the quoted executable path. Provide `IsEnabled`, `Enable`, and `Disable`. Failures return a result instead of throwing into the UI event loop.
 
 - [ ] **Step 3: 构建验证**
 
-Run: `dotnet build WiseAutoShutdown.sln -c Debug`
+Run: `dotnet build HourLatch.sln -c Debug`
 
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.App/SystemEvents src/WiseAutoShutdown.App/Startup
+git add src/HourLatch.App/SystemEvents src/HourLatch.App/Startup
 git commit -m "feat: 监听系统事件和自启动"
 ```
 
 ### Task 9: 构建设置、密码和限制提示界面
 
 **Files:**
-- Create: `src/WiseAutoShutdown.App/UI/MainForm.cs`
-- Create: `src/WiseAutoShutdown.App/UI/MainForm.Designer.cs`
-- Create: `src/WiseAutoShutdown.App/UI/RestrictionPromptForm.cs`
-- Create: `src/WiseAutoShutdown.App/UI/RestrictionPromptForm.Designer.cs`
-- Create: `src/WiseAutoShutdown.App/UI/PasswordVerificationDialog.cs`
-- Create: `src/WiseAutoShutdown.App/UI/PasswordVerificationDialog.Designer.cs`
+- Create: `src/HourLatch.App/UI/MainForm.cs`
+- Create: `src/HourLatch.App/UI/MainForm.Designer.cs`
+- Create: `src/HourLatch.App/UI/RestrictionPromptForm.cs`
+- Create: `src/HourLatch.App/UI/RestrictionPromptForm.Designer.cs`
+- Create: `src/HourLatch.App/UI/PasswordVerificationDialog.cs`
+- Create: `src/HourLatch.App/UI/PasswordVerificationDialog.Designer.cs`
 
 - [ ] **Step 1: 创建设置窗口控件**
 
@@ -680,25 +680,25 @@ Duration choices: `15 分钟`, `30 分钟`, `60 分钟`, `自定义`, and condit
 
 - [ ] **Step 4: 构建界面代码**
 
-Run: `dotnet build src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj -c Debug`
+Run: `dotnet build src/HourLatch.App/HourLatch.App.csproj -c Debug`
 
 Expected: PASS. The visual 100%/150% scaling check is performed after Task 10 wires the tray runtime.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.App/UI
+git add src/HourLatch.App/UI
 git commit -m "feat: 添加限制设置和放行界面"
 ```
 
 ### Task 10: 接入托盘运行时、日志和重试
 
 **Files:**
-- Create: `src/WiseAutoShutdown.App/Diagnostics/LocalLog.cs`
-- Create: `src/WiseAutoShutdown.App/Tray/TrayApplicationContext.cs`
-- Create: `src/WiseAutoShutdown.App/Program.cs`
-- Modify: `src/WiseAutoShutdown.Core/Runtime/RestrictionController.cs`
-- Modify: `tests/WiseAutoShutdown.Core.Tests/Runtime/RestrictionControllerTests.cs`
+- Create: `src/HourLatch.App/Diagnostics/LocalLog.cs`
+- Create: `src/HourLatch.App/Tray/TrayApplicationContext.cs`
+- Create: `src/HourLatch.App/Program.cs`
+- Modify: `src/HourLatch.Core/Runtime/RestrictionController.cs`
+- Modify: `tests/HourLatch.Core.Tests/Runtime/RestrictionControllerTests.cs`
 
 - [ ] **Step 1: 增加失败重试测试**
 
@@ -716,7 +716,7 @@ Store `retryAttempt` and `nextRetryAt`. Periodic evaluation executes only when `
 
 - [ ] **Step 4: 实现本地日志**
 
-Write logs to `%LocalAppData%\WiseAutoShutdown\logs\app.log`. Rotate to `app.previous.log` when the current log exceeds 1 MiB. Log event type, state transition, action result, and exception type; never log passwords, hashes, salts, or entered text.
+Write logs to `%LocalAppData%\HourLatch\logs\app.log`. Rotate to `app.previous.log` when the current log exceeds 1 MiB. Log event type, state transition, action result, and exception type; never log passwords, hashes, salts, or entered text.
 
 - [ ] **Step 5: 实现托盘 ApplicationContext**
 
@@ -724,15 +724,15 @@ Own one `NotifyIcon`, `MainForm`, `SystemEventMonitor`, `RestrictionController`,
 
 - [ ] **Step 6: 实现程序入口**
 
-`Program.Main` enables visual styles, loads `%AppData%\WiseAutoShutdown\settings.json`, creates disabled defaults on first launch, shows settings when configuration is invalid, starts `TrayApplicationContext`, and registers global exception handlers that log then display one actionable error.
+`Program.Main` enables visual styles, loads `%AppData%\HourLatch\settings.json`, creates disabled defaults on first launch, shows settings when configuration is invalid, starts `TrayApplicationContext`, and registers global exception handlers that log then display one actionable error.
 
 - [ ] **Step 7: 运行全部自动化验证**
 
 Run:
 
 ```powershell
-dotnet test WiseAutoShutdown.sln -c Debug
-dotnet build WiseAutoShutdown.sln -c Release
+dotnet test HourLatch.sln -c Debug
+dotnet build HourLatch.sln -c Release
 ```
 
 Expected: all tests PASS; build has 0 errors.
@@ -740,7 +740,7 @@ Expected: all tests PASS; build has 0 errors.
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add src/WiseAutoShutdown.App src/WiseAutoShutdown.Core/Runtime tests/WiseAutoShutdown.Core.Tests/Runtime
+git add src/HourLatch.App src/HourLatch.Core/Runtime tests/HourLatch.Core.Tests/Runtime
 git commit -m "feat: 接入托盘限制运行时"
 ```
 
@@ -748,7 +748,7 @@ git commit -m "feat: 接入托盘限制运行时"
 
 **Files:**
 - Create: `README.md`
-- Modify: `src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj`
+- Modify: `src/HourLatch.App/HourLatch.App.csproj`
 
 - [ ] **Step 1: 编写 README**
 
@@ -763,16 +763,16 @@ Add `RuntimeIdentifier=win-x64`, `PublishSingleFile=true`, `SelfContained=false`
 Run:
 
 ```powershell
-dotnet publish src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj -c Release -r win-x64 --self-contained false
-Get-ChildItem src/WiseAutoShutdown.App/bin/Release/net8.0-windows/win-x64/publish
+dotnet publish src/HourLatch.App/HourLatch.App.csproj -c Release -r win-x64 --self-contained false
+Get-ChildItem src/HourLatch.App/bin/Release/net8.0-windows/win-x64/publish
 ```
 
-Expected: `WiseAutoShutdown.App.exe` exists and launches on the current machine with the installed .NET 8 Desktop Runtime.
+Expected: `HourLatch.exe` exists and launches on the current machine with the installed .NET 8 Desktop Runtime.
 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add README.md src/WiseAutoShutdown.App/WiseAutoShutdown.App.csproj
+git add README.md src/HourLatch.App/HourLatch.App.csproj
 git commit -m "docs: 添加使用和发布说明"
 ```
 
@@ -786,8 +786,8 @@ git commit -m "docs: 添加使用和发布说明"
 Run:
 
 ```powershell
-dotnet test WiseAutoShutdown.sln -c Release
-dotnet build WiseAutoShutdown.sln -c Release
+dotnet test HourLatch.sln -c Release
+dotnet build HourLatch.sln -c Release
 git diff --check
 ```
 
@@ -812,7 +812,7 @@ Verify sleep, resume, no immediate sleep loop behind the secure desktop, unlock 
 Run:
 
 ```powershell
-Get-Content "$env:LOCALAPPDATA\WiseAutoShutdown\logs\app.log" -Tail 100
+Get-Content "$env:LOCALAPPDATA\HourLatch\logs\app.log" -Tail 100
 git status --short
 git log --oneline --decorate -12
 ```
