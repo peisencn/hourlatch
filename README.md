@@ -77,3 +77,7 @@ src\HourLatch.App\bin\Release\net8.0-windows\win-x64\publish
 ## 第三方代码
 
 Windows 锁屏和休眠实现参考了 MIT 许可的 ShutdownTimerClassic。完整归属见 `THIRD_PARTY_NOTICES.md` 和 `licenses/ShutdownTimerClassic-MIT.txt`。
+
+## 许可证
+
+HourLatch 自身代码采用 MIT License，详见 `LICENSE`。
